@@ -13,9 +13,8 @@ def value_to_percent(df):
 
 # ОБУЧАЮЩИЙ НАБОР ДАННЫХ
 
-df_train = pd.read_csv('train.csv')
+df_train = pd.read_csv('train_houses.csv')
 fall_index_train = df_train.columns[df_train.isnull().any()].tolist()
-
 # print(df_train.corr(numeric_only=True)['SalePrice'].sort_values(ascending=False))
 # print()
 # print()
@@ -34,7 +33,6 @@ df_train = df_train.drop(
     [897, 910, 1292, 1416, 185, 1169, 624, 773, 1230, 1300, 1334, 1379, 234, 650, 936, 973, 977, 1243, 1278], axis=0)
 
 # Работа с отсутствующими данными
-df_train = df_train.drop('Id', axis=1)
 df_train = df_train.drop('PoolQC', axis=1)
 df_train = df_train.drop('MiscFeature', axis=1)
 df_train = df_train.drop('Alley', axis=1)
@@ -81,23 +79,21 @@ data_train = data_train.drop('SalePrice', axis=1)
 
 # ИСПЫТАТЕЛЬНЫЙ НАБОР ДАННЫХ
 
-df_test = pd.read_csv('test.csv')
-y_test = pd.read_csv('sample_submission.csv')
-y_test = y_test.drop(
-    [209, 992, 1150, 660, 1116, 95, 1029, 691, 728, 455, 485, 756, 1013, 790, 1444, 757, 758, 27, 888, 580, 725, 1064,
-     666])
+df_test = pd.read_csv('test_houses.csv')
+
 
 # Очистка выбросов
+ser = df_test.iloc[[209, 992, 1150, 660, 1116, 95, 1029, 691, 728, 455, 485, 756, 1013, 790, 1444, 757, 758, 27, 888, 580, 725, 1064, 666]]['Id']
+# print(ser)
 df_test = df_test.drop([209, 992, 1150], axis=0)  # MasVnrType
 df_test = df_test.drop(
     [660, 1116, 95, 1029, 691, 728, 455, 485, 756, 1013, 790, 1444, 757, 758, 27, 888, 580, 725, 1064, 666], axis=0)
-
 # Работа с отсутствующими данными
-df_test = df_test.drop('Id', axis=1)
 df_test = df_test.drop('PoolQC', axis=1)
 df_test = df_test.drop('MiscFeature', axis=1)
 df_test = df_test.drop('Alley', axis=1)
 df_test = df_test.drop('Fence', axis=1)
+
 df_test['MasVnrType'] = df_test['MasVnrType'].fillna('None')
 df_test['FireplaceQu'] = df_test['FireplaceQu'].fillna('None')
 df_test['LotFrontage'] = df_test.groupby('Neighborhood')['LotFrontage'].transform(
@@ -114,7 +110,6 @@ df_test['GarageYrBlt'] = df_test['GarageYrBlt'].fillna('None')
 df_test['GarageFinish'] = df_test['GarageFinish'].fillna('None')
 df_test['GarageQual'] = df_test['GarageQual'].fillna('None')
 df_test['GarageCond'] = df_test['GarageCond'].fillna('None')
-
 # Масштабирование
 df_test['MiscVal'] = (df_test['MiscVal'] - df_test['MiscVal'].min()) / (
             df_test['MiscVal'].max() - df_test['MiscVal'].min())
@@ -123,6 +118,8 @@ df_test['MiscVal'] = (df_test['MiscVal'] - df_test['MiscVal'].min()) / (
 df_test['MSSubClass'] = df_test['MSSubClass'].apply(str)
 categ = df_test.select_dtypes(include='object')
 df_test = pd.get_dummies(data=df_test, drop_first=True, columns=categ.columns)
+
+
 data_test = df_test.copy()
 array = []
 
@@ -130,38 +127,42 @@ array = []
 for i in list({'GarageYrBlt_1900.0', 'MSSubClass_150', 'Condition2_PosN', 'GarageYrBlt_1943.0', 'GarageYrBlt_1919.0', 'GarageYrBlt_2207.0', 'GarageYrBlt_1917.0'}):
     data_test = data_test.drop(i, axis=1)
 
-# print(data_train)
-from sklearn.linear_model import LinearRegression
+
+
 from sklearn.metrics import mean_squared_error, mean_squared_error
-#
-y_test = y_test.drop('Id', axis=1)
-reg = LinearRegression()
-#
-reg.fit(data_train, y_train)
-predict = reg.predict(data_test)
-predict_serias = pd.Series(predict)
-y_seris = pd.Series(y_test['SalePrice']).reset_index()
-y_seris = y_seris.drop('index', axis=1)
-ost_reg = y_seris['SalePrice'] - predict_serias
-# plt.scatter(data_test['GrLivArea'], predict, color='r')
-# plt.scatter(data_test['GrLivArea'], y_test['SalePrice'])
-# plt.show()
-
-print(np.sqrt(mean_squared_error(y_test, predict)))
-#
-from sklearn.tree import DecisionTreeRegressor
-
-tree = DecisionTreeRegressor()
-
-tree.fit(data_train, y_train)
-predict_tree = tree.predict(data_test)
-print(np.sqrt(mean_squared_error(y_test, predict_tree)))
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.ensemble import RandomForestRegressor
+# poly = PolynomialFeatures(degree=2)
+# poly.fit(data_train)
+# data_train = poly.transform(data_train)
 
+
+# print(data_test['Id'].head())
 forest = RandomForestRegressor()
 forest.fit(data_train, y_train)
 predict_forest = forest.predict(data_test)
-print(np.sqrt(mean_squared_error(y_test, predict_forest)))
+# print(predict_forest)
+ex = pd.DataFrame(data_test['Id'], columns=['Id'])
+ex['SalePrice'] = predict_forest
+# print(ex['SalePrice'].mean())
+sp1 = list(ex['SalePrice']) + [179222.85459610028] * len(list(ser))
+sp = list(ex['Id']) + list(ser)
+# print(len(sp))
+
+
+
+fl = pd.DataFrame(sp, columns=['Id'])
+fl['SalePrice'] = sp1
+ # ex = ex._append(ser, ignore_index=True)
+# print(ex.head())
+# print(ex[ex['Id'] == 2121])
+
+# ex = pd.DataFrame(predict_forest, columns=['SalePrice'])
+# ex['Id'] = data_test['Id']
+# print(ex)
+# ex = ex.drop(0, axis=0)
+# print(np.sqrt(mean_squared_error(y_test, predict_forest)))
 # plt.scatter(data_test['GrLivArea'], predict_forest, color='r')
 # plt.scatter(data_test['GrLivArea'], y_test['SalePrice'])
 # plt.show()
+fl.to_csv('pred.csv', index=False)
